@@ -1,5 +1,5 @@
-##chmod a+x  /etc/init.d/filter_rules.sh##
-##/etc/init.d/filter_rules.sh start##
+##chmod a+x /etc/init.d/filter_rules.sh##
+##/etc/init.d/ip_tables.sh start##
 
 #!/bin/bash
 
