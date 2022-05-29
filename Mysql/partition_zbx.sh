@@ -1,6 +1,6 @@
 
 
-##Criando a tabela onde ocntem as infos de particionamento
+##Criando a tabela onde contem as infos de particionamento
 CREATE TABLE `manage_partitions` (
 `tablename` VARCHAR(64) NOT NULL COMMENT 'Table name',
 `period` VARCHAR(64) NOT NULL COMMENT 'Period - daily or monthly',
@@ -52,7 +52,7 @@ ALTER TABLE `trends_uint` PARTITION BY RANGE (clock) (PARTITION p2020_06
 VALUES LESS THAN (UNIX_TIMESTAMP("2020-07-01 00:00:00")) ENGINE =
 InnoDB);
 
-##Criando procedure
+##Criando procedure nest_partitions
 DELIMITER $$
 USE 'zabbix'$$
 DROP PROCEDURE IF EXISTS `create_next_partitions`$$
