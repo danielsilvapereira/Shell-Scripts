@@ -9,7 +9,5 @@ select table_name, partition_name, table_rows from
 information_schema.partitions where table_name like 'trends%';
 
 vim /etc/crontab
-0 */6 * * * root mysql -u zabbix -e "CALL
-zabbix.drop_partitions('zabbix');"
-0 */6 * * * root mysql -u zabbix -e "CALL
-zabbix.create_next_partitions('zabbix');"
+0 */6 * * * root mysql -u zabbix -e "CALL zabbix.drop_partitions('zabbix');"
+0 */6 * * * root mysql -u zabbix -e "CALL zabbix.create_next_partitions('zabbix');"
