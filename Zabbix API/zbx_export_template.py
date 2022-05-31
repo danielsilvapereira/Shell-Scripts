@@ -24,8 +24,8 @@ os.system(f"git config --global credential.helper store {git_token}")
 os.system(f"cd {path} && git init")
 
 #Configurando git remoto
-os.system(f"git remote add zbx_templates {git_repo}")
-os.system("git pull zbx_templates main")
+os.system(f"cd {path} && git remote add zbx_templates {git_repo}")
+os.system(f"cd {path} && git pull zbx_templates main")
 
 #Conectando na api do zabbix
 zapi = ZabbixAPI(server)
@@ -60,6 +60,6 @@ for template in templates:
 
 
 #Atualizando repositorio do github
-os.system("git add .")
-os.system("git commmit -m 'Zabbix Template Import by'")
-os.system("git push zbx_templates main")
+os.system("cd {path} && git add .")
+os.system("cd {path} && git commmit -m 'Zabbix Template Import by'")
+os.system("cd {path} && git push zbx_templates main")
