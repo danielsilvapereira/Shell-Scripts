@@ -24,8 +24,9 @@ os.system(f"git config --global credential.helper store {git_token}")
 os.system(f"cd {path} && git init")
 
 #Configurando git remoto
+os.system(git branch -m master main)
 os.system(f"cd {path} && git remote add zbx_templates {git_repo}")
-os.system(f"cd {path} && git pull zbx_templates main")
+os.system(f"cd {path} && git pull zbx_templates main --allow-unrelated-histories")
 
 #Conectando na api do zabbix
 zapi = ZabbixAPI(server)
