@@ -60,6 +60,6 @@ for template in templates:
 
 
 #Atualizando repositorio do github
-os.system("cd {path} && git add .")
-os.system("cd {path} && git commmit -m 'Zabbix Template Import by'")
-os.system("cd {path} && git push zbx_templates main")
+os.system(f"cd {path} && git add .")
+os.system(f"cd {path} && git commmit -m 'Zabbix Template Import by'")
+os.system(f"cd {path} && git push zbx_templates main")
