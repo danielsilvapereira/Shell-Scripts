@@ -103,11 +103,11 @@ case $OPTION in
 
 			#Instalando
 			echo '4/7: Instalando os pacotes' 
-			dnf install zabbix-server -y > /dev/null 2>&1
+			dnf install zabbix-server-mysql zabbix-sql-scripts -y > /dev/null 2>&1
 
 			#Importando o schema
 			echo '5/7: Importando o Schema para o Banco de Dados'
-			zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -h$DBIP -uzabbix_srv -p"$ZBXPASS" zabbix > /dev/null 2>&1
+			zcat /usr/share/doc/zabbix-sql-scripts/mysql/server.sql.gz | mysql -h$DBIP -uzabbix_srv -p"$ZBXPASS" zabbix > /dev/null 2>&1
 
 			#Configurando o zabbix
 			echo '6/7: Configurando o Zabbix'
@@ -141,10 +141,6 @@ case $OPTION in
 			echo '3/5: Instalando os pacotes' 
 			dnf clean all > /dev/null 2>&1
 			dnf install zabbix-web-mysql zabbix-nginx-conf -y > /dev/null 2>&1
-
-			#Alterando o timezone do PHP
-			echo '4/5: Alterando o timezone do PHP' 
-			echo  "php_value[date.timezone] = America/Sao_Paulo" >> /etc/php-fpm.d/zabbix.conf > /dev/null 2>&1
 
 			#Iniciando os serviços
 			echo '5/5: Iniciando os serviços'
