@@ -45,7 +45,7 @@ case $OPTION in
 
 			#Criando banco de dados e alterando a senha de root
 			echo '3/4: Criando o Banco de Dados para o Zabbix'
-			${MYSQL} -e "CREATE DATABASE zabbix CHARACTER SET utf8 COLLATE utf8_bin";
+			${MYSQL} -e "CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin";
 			${MYSQL} -e "create user 'zabbix_srv'@'"$SRVIP"' identified by '$PASSZBX'";
 			${MYSQL} -e "grant all privileges on zabbix.* to 'zabbix_srv'@'"$SRVIP"'";
 			${MYSQL} -e "flush privileges";
