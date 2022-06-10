@@ -1,0 +1,250 @@
+#!/bin/bash
+
+#Menu
+OPTION=$(whiptail --title "Desenvolvido por Daniel Pereira" --radiolist \
+"Escolha abaixo:" 15 60 5 \
+"Instalar Zabbix - Backend" "" ON \
+"Instalar Zabbix - Server" "" OFF \
+"Instalar Zabbix - Frontend" "" OFF \
+"Instalar Zabbix - Proxy" "" OFF \
+"Instalar Grafana" "" OFF 3>&1 1>&2 2>&3)
+
+#Variaveis
+URL_ZABBIX=https://repo.zabbix.com/zabbix/5.0/rhel/8/x86_64/zabbix-release-5.0-1.el8.noarch.rpm
+URL_GRAFANA=https://dl.grafana.com/enterprise/release/grafana-enterprise-8.4.5-1.x86_64.rpm
+
+#Opções
+case $OPTION in
+
+      'Instalar Zabbix - Backend')
+			#Iniciando
+			clear
+			
+			# Variaveis
+			passfe=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c${1:-12}; echo)
+			passsrv=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c${1:-12}; echo)
+			passpsql=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c${1:-12}; echo)
+			srvip=$(whiptail --title "Digite o IP do seu Zabbix Server" --inputbox "IP:" 10 60 3>&1 1>&2 2>&3)
+			feip=$(whiptail --title "Digite o IP do seu Zabbix Frontend" --inputbox "IP:" 10 60 3>&1 1>&2 2>&3)
+
+			# Ajustando Firewall
+			echo '1/4: Ajustando Firewall'
+			firewall-cmd --permanent --add-port=5432/tcp > /dev/null 2>&1
+			firewall-cmd --reload > /dev/null 2>&1
+			setenforce 0 > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config > /dev/null 2>&1
+      
+      ## Postgresql
+      # Pré requisitos
+      dnf -y module disable postgresql > /dev/null 2>&1
+      
+      # Baixando o repositorio
+      dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm > /dev/null 2>&1
+      
+      # Instalando postgresql13 server e client
+      dnf install -y postgresql13 postgresql13-server > /dev/null 2>&1
+      
+      # Iniciando a database e o serviço
+      /usr/pgsql-13/bin/postgresql-13-setup initdb > /dev/null 2>&1
+      systemctl start --now postgresql-13 > /dev/null 2>&1
+      
+      # Configurando o usuario para o Zabbix Server
+      sudo -u postgres psql -c "CREATE USER zabbix WITH ENCRYPTED PASSWORD 'Z4bb1xD4t4b4s3'" > /dev/null 2>&1
+      # Configurando o usuario para o Zabbix Frontend
+      sudo -u postgres psql -c "CREATE USER zabbix WITH ENCRYPTED PASSWORD 'Z4bb1xD4t4b4s3'" > /dev/null 2>&1
+      # Alterando a senha do postgres
+      sudo -u postgres psql -c "CREATE USER zabbix WITH ENCRYPTED PASSWORD 'Z4bb1xD4t4b4s3'" > /dev/null 2>&1
+      # Criando o database
+      sudo -u postgres createdb -O zabbix zabbix > /dev/null 2>&1
+			
+			# Informando as senhas geradas
+			echo ROOT: $passpsql >> pass.log
+			echo ZBX - SRV: $passsrv >> pass.log
+			echo ZBX - FE: $passfe >> pass.log
+			
+			clear
+			# Informando as senhas
+			echo    
+			echo ================================================
+			echo "Senha psql = $passpsql"
+			echo "Senha Zabbix Server = $passsrv"
+			echo "Senha Zabbix Frontend = $passsfe"
+			echo ================================================
+			echo    
+		;;
+		'Instalar Zabbix - Server')
+			#Iniciando
+			clear
+
+			#Variaveis
+			DBIP=$(whiptail --title "Digite o IP do seu banco de dados" --inputbox "IP:" 10 60 3>&1 1>&2 2>&3)
+			ZBXPASS=$(whiptail --title "Digite a senha para o usuario Zabbix" --inputbox "SENHA:" 10 60 3>&1 1>&2 2>&3)
+
+			#Ajustando o Firewall
+			echo '1/7: Ajustando o Firewall'
+			firewall-cmd --permanent --add-port=10051/tcp > /dev/null 2>&1
+			firewall-cmd --permanent --add-port=10050/tcp > /dev/null 2>&1
+			firewall-cmd --reload > /dev/null 2>&1
+			setenforce 0 > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config > /dev/null 2>&1
+
+			#Instalando o pacote MYSQL
+			echo '2/7: Instalando o pacote MYSQL'
+			dnf clean all > /dev/null 2>&1
+			dnf install mysql -y > /dev/null 2>&1
+
+			##Baixando e instalando os pacotes do Zabbix
+			#Baixando
+			echo '3/7: Baixando o pacote do Zabbix'  
+			dnf clean all > /dev/null 2>&1          
+			dnf install $URL_ZABBIX -y > /dev/null 2>&1
+
+			#Instalando
+			echo '4/7: Instalando os pacotes' 
+			dnf install zabbix-server-mysql zabbix-sql-scripts -y > /dev/null 2>&1
+
+			#Importando o schema
+			echo '5/7: Importando o Schema para o Banco de Dados'
+			zcat /usr/share/doc/zabbix-sql-scripts/mysql/server.sql.gz | mysql -h$DBIP -uzabbix_srv -p"$ZBXPASS" zabbix > /dev/null 2>&1
+
+			#Configurando o zabbix
+			echo '6/7: Configurando o Zabbix'
+			sed -i "s/# DBPassword=/DBPassword=$ZBXPASS/g" /etc/zabbix/zabbix_server.conf
+			sed -i "s/# DBHost=localhost/DBHost=$DBIP/g" /etc/zabbix/zabbix_server.conf
+			sed -i "s/# DBUser=zabbix/DBUser=zabbix_srv/g" /etc/zabbix/zabbix_server.conf
+			
+			#Iniciando os serviços
+			echo '7/7: Iniciando os serviços'
+			systemctl enable --now zabbix-server > /dev/null 2>&1
+		;;
+		'Instalar Zabbix - Frontend')
+			#Iniciando
+			clear
+						
+			#Ajustando o Firewall
+			echo '1/5: Ajustando o Firewall'
+			firewall-cmd --permanent --add-service=http
+			firewall-cmd --reload > /dev/null 2>&1
+			setenforce 0 > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config > /dev/null 2>&1
+
+			##Baixando e instalando os pacotes do Zabbix
+			#Baixando
+			echo '2/5: Baixando o pacote do Zabbix'  
+			dnf clean all > /dev/null 2>&1          
+			dnf install $URL_ZABBIX -y > /dev/null 2>&1
+
+			#Instalando
+			echo '3/5: Instalando os pacotes' 
+			dnf clean all > /dev/null 2>&1
+			dnf install zabbix-web-mysql zabbix-nginx-conf -y > /dev/null 2>&1
+
+			#Iniciando os serviços
+			echo '5/5: Iniciando os serviços'
+			systemctl enable --now nginx php-fpm > /dev/null 2>&1
+		;;
+		'Instalar Zabbix - Proxy')
+			#Iniciando
+			clear
+			
+			#Variaveis
+			MYSQL="mysql -uroot"
+			PASSZBX=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c${1:-12}; echo)
+			PASSROOT=$(tr -dc A-Za-z0-9 < /dev/urandom | head -c${1:-12}; echo)
+			ZBXIP=$(whiptail --title "Digite o IP do seu Zabbix Server" --inputbox "IP:" 10 60 3>&1 1>&2 2>&3)
+			PRXNAME=$(whiptail --title "Digite o nome do Zabbix Proxy (Hostname):" --inputbox "NOME:" 10 60 3>&1 1>&2 2>&3)
+
+			#Ajustando Firewall
+			echo '1/7: Ajustando Firewall'
+			setenforce 0 > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config > /dev/null 2>&1
+
+			##Banco de Dados##
+			#Baixando o pacote do mysql
+			echo '2/7: Instalando Mysql Server'
+			dnf clean all > /dev/null 2>&1
+			dnf install mysql-server mysql -y > /dev/null 2>&1
+			systemctl enable --now mysqld > /dev/null 2>&1
+
+			#Criando banco de dados e alterando a senha de root
+			echo '3/7: Instalando Mysql Server'
+			${MYSQL} -e "CREATE DATABASE zabbix_proxy CHARACTER SET utf8 COLLATE utf8_bin";
+			${MYSQL} -e "create user 'zabbix'@'localhost' identified by '$PASSZBX'";
+			${MYSQL} -e "grant all privileges on zabbix_proxy.* to 'zabbix'@'localhost'";
+			${MYSQL} -e "flush privileges";
+			${MYSQL} -e "alter user 'root'@'localhost' identified by '$PASSROOT'";
+
+			#Baixando e instalado o pacote do zabbix proxy
+			echo '4/7: Instalando Zabbix Proxy'
+			dnf clean all > /dev/null 2>&1
+			dnf install $URL_ZABBIX -y > /dev/null 2>&1
+			dnf install zabbix-proxy-mysql zabbix-sql-scripts -y > /dev/null 2>&1
+
+			#Importando o schema
+			echo '5/7: Importando o Schema para o banco de dados'
+			zcat /usr/share/doc/zabbix-sql-scripts/mysql/schema.sql.gz | mysql -uzabbix -p$PASSZBX zabbix_proxy
+
+			#Configurações
+			echo '6/7: Realizando configurações no arquivo do Zabbix Proxy'
+			sed -i "s/# DBPassword=/DBPassword=$PASSZBX/g" /etc/zabbix/zabbix_server.conf
+			sed -i "s/# ProxyMode=0/ProxyMode=0/g" /etc/zabbix/zabbix_proxy.conf
+			sed -i "s/Server=127.0.0.1/Server=$ZBXIP/g" /etc/zabbix/zabbix_proxy.conf
+			sed -i "s/Hostname=Zabbix proxy/Hostname=$PRXNAME/g" /etc/zabbix/zabbix_proxy.conf
+			sed -i "s/# ConfigFrequency=3600/ConfigFrequency=60/g" /etc/zabbix/zabbix_proxy.conf
+			sed -i "s/# DataSenderFrequency=1/DataSederFrequency=10/g" /etc/zabbix/zabbix_proxy.conf
+			sed -i "s/# ProxyOfflineBuffer=1/ProxyOfflineBuffer=72/g" /etc/zabbix/zabbix_proxy.conf
+
+			#Iniciando serviços
+			echo '7/7: Inciando os serviços'
+			systemctl enable --now zabbix-proxy > /dev/null 2>&1
+
+			clear
+			
+			#Informando as senhas geradas
+			echo ROOT: $PASSROOT >> mysql.log
+			echo ZBX: $PASSZBX >> mysql.log
+
+			#Informando as senhas
+			echo    
+			echo ================================================
+			echo "Senha root = $PASSROOT"
+			echo "Senha Zabbix Proxy = $PASSZBX"
+			echo ================================================
+			echo    
+		;;
+		'Instalar Grafana')
+			#Limpando a tela
+			clear
+			
+			#Ajustando o firewall
+			echo '1/4: Ajustando Firewall'
+			setenforce 0 > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux > /dev/null 2>&1
+			sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config > /dev/null 2>&1
+			firewall-cmd --permanent --add-port=3000/tcp > /dev/null 2>&1
+			firewall-cmd --reload > /dev/null 2>&1
+			
+			#Baixando o pacote
+			echo '2/4: Baixando o pacote'
+			wget $URL_GRAFANA > /dev/null 2>&1
+			
+			#Instalando
+			echo '3/4: Instalando'
+			yum install grafana-enterprise-8.4.5-1.x86_64.rpm -y > /dev/null 2>&1
+			
+			#Iniciando
+			echo '3/4: Iniciando o serviço do grafana-server'
+			systemctl enable --now grafana-server > /dev/null 2>&1
+		;;
+esac
+
+exitstatus=$?
+if [ $exitstatus = 0 ]; then
+    echo "$OPTION Concluido!"
+else
+    echo "Cancelado"
+fi
